@@ -1,0 +1,196 @@
+CREATE ROLE ROL_APUSR;											
+GRANT CREATE SESSION to ROL_APUSR;
+GRANT CREATE DATABASE LINK	to ROL_APUSR;
+GRANT CREATE PROCEDURE	to ROL_APUSR;
+GRANT CREATE SEQUENCE to ROL_APUSR;
+GRANT CREATE SYNONYM to ROL_APUSR;
+GRANT CREATE TABLE	to ROL_APUSR;
+GRANT CREATE VIEW	to ROL_APUSR;
+GRANT CREATE TRIGGER to ROL_APUSR;
+GRANT EXECUTE ON SYS.DBMS_LOB to ROL_APUSR;
+GRANT EXECUTE ON SYS.DBMS_FILE_TRANSFER to ROL_APUSR;
+GRANT SELECT ON	SYS.DBA_TAB_PRIVS to ROL_APUSR;
+GRANT ROL_APUSR  to	APUSR_SN01_SB01;
+
+＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
+
+asmcmd>mkdir SN01
+
+create tablespace TS_SN01_COMMON
+datafile '+FRA/pdb1/TS_SN01_COMMON.dbf' size 10240M
+extent management local uniform size 4M
+segment space management auto;
+								
+alter database datafile '+FRA/pdb1/TS_SN01_COMMON.dbf' autoextend on;
+
+
+＜スキーマ追加時は↓繰り返し＞
+CREATE USER APUSR_SN01_SB03
+IDENTIFIED BY "sn0103"
+DEFAULT TABLESPACE TS_SN01_COMMON
+QUOTA UNLIMITED ON TS_SN01_COMMON;
+
+GRANT ROL_APUSR to APUSR_SN01_SB01;
+
+asmcmd>mkdir PDB1
+
+
+create bigfile tablespace TS_SN01_COMMON
+datafile '+FRA/PDB1/TS_SN01_COMMON.dbf' size 10480M
+extent management local uniform size 4M
+segment space management auto;
+								
+alter database datafile '+FRA/PDB1/TS_SN01_COMMON.dbf' autoextend on;								
+
+
+＜スキーマ追加時は↓繰り返し＞								
+CREATE USER APUSR_SN01_SB01
+IDENTIFIED BY "apusr_sn01_sb01"
+DEFAULT TABLESPACE TS_SN01_COMMON
+QUOTA UNLIMITED ON TS_SN01_COMMON;
+
+GRANT ROL_APUSR to APUSR_SN01_SB02;
+
+＜削除時＞
+ALTER DISKGROUP DATA DROP ALIAS '+DATA/oracle/undotbs01.dbf';
+DROP USER APUSR_SN01_SB01 CASCADE;
+DROP TABLESPACE TS_SN01_COMMON INCLUDING CONTENTS AND DATAFILES;
+ALTER DATABASE DATAFILE 18 offline for drop; 
+ALTER TABLESPACE TS_TEST_COMMON DROP DATAFILE 18;
+asm でデータファイル削除。
+
+
+オブジェクト削除
+SQL> col TABLE_NAME for a20
+SQL> col PRIVILEGE for a20
+SQL> col OWNER for a20
+SQL> select OWNER,TABLE_NAME,PRIVILEGE from USER_TAB_PRIVS;    オブジェクト権限
+SQL> select * from session_privs;                              システム権限
+
+SQL> col object_name for a30
+SQL> col object_type for a30
+SQL> select OBJECT_NAME,OBJECT_TYPE,status from user_objects;         オブジェクト一覧
+
+SQL> select 'GRANT '|| PRIVILEGE ||' TO APUSR_SN01_SB04;' from session_privs;
+SQL> select 'GRANT '|| PRIVILEGE || ' ON ' || TABLE_NAME||' TO APUSR_SN01_SB04;' from USER_TAB_PRIVS;
+
+SQL> SELECT 'DROP TABLE ' || TABLE_NAME || ' ;' FROM USER_TABLES ;
+SQL> SELECT DISTINCT 'DROP '|| TYPE || ' ' || NAME || ' ;' FROM USER_SOURCE ;
+
+
+
+アーカイブログ削除
+SQL> archive log list
+rman target /
+list archivelog all;
+delete archivelog until sequence 7000 thread 2;
+
+
+セッション確認
+select sid,serial#,username,logon_time from v$session;
+セッション削除 
+alter system kill session 'SID,SERIAL# ';
+
+セッション数変更
+alter system set processes = 1200 scope=spfile;
+alter system set sessions = 1200 scope=spfile;
+
+
+
+●起動順序：CRS → NODEAPPS → ASM → DB → EM
+Oracle Clusterware の起動
+# /u01/app/12.1.0/grid/bin/crsctl start crs   
+# /u01/app/11.2.0/grid/bin/crsctl start crs   
+
+NodeApplicationの起動
+$ srvctl start nodeapps -n jpdbeng30
+$ srvctl start nodeapps -n jpdbeng31
+
+ASM
+$ srvctl start asm -n jpdbeng30
+$ srvctl start asm -n jpdbeng31
+
+DB
+$ srvctl start database -d oracle
+$ srvctl start database -d orcl
+EM
+$ cd /u01/app/middleware/EMAgent/agent_inst/bin/
+$ ./emctl start agent
+
+
+●停止順序：EM → DB → ASM → NODEAPPS → CRS
+EM Agent
+$ cd /u01/app/middleware/EMAgent/agent_inst/bin/
+$ ./emctl stop agent
+
+DB
+$ srvctl status database -d orcl
+$ srvctl stop database -d oracle
+
+（各インスタンスを個別に停止する場合）
+   $ srvctl stop instance -d oracle -i oracle_1
+
+ASM
+$ srvctl stop asm -n jpdbeng32.jp.oracle.com
+$ srvctl stop asm -n jpdbeng31.jp.oracle.com
+
+
+NODEAPPS
+$ srvctl stop nodeapps -n jpdbeng30.jp.oracle.com
+$ srvctl stop nodeapps -n jpdbeng31.jp.oracle.com
+
+CRS
+# /u01/app/11.2.0/grid/bin/crsctl stop crs          node1
+# /u01/app/11.2.0/grid/bin/crsctl stop crs          node2
+
+
+
+状態確認
+$ /u01/app/11.2.0/grid/bin/crsctl stat res -t -init
+$ /u01/app/11.2.0/grid/bin/crsctl check crs
+
+＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
+[oracle@jpdbeng33 bin]$ ./crsctl check crs
+CRS-4638: Oracle高可用性サービスがオンラインです
+CRS-4535: Cluster Ready Servicesと通信できません   ←これが原因
+CRS-4529: Cluster Synchronization Servicesがオンラインです
+CRS-4533: イベント・マネージャがオンラインです
+
+[root@jpdbeng32 init.d]# ps -ef | grep ohasd
+root     14062     1  0 11:19 ?        00:00:00 /bin/sh /etc/init.d/init.ohasd run
+root     15514     1  3 11:20 ?        00:01:18 /u01/app/12.1.0/grid/bin/ohasd.bin reboot
+root     22523 22308  0 11:59 pts/0    00:00:00 grep ohasd
+[root@jpdbeng32 init.d]#
+
+⇒reboot付きの変なプロセスとrestart付きのプロセスをkillする。
+  そのあと、クラスタ起動。
+  
+  /u01/app/12.1.0/grid/bin/ocrcheck  ファイル整合性チェック
+  ./ocrconfig -showbackup            ocrバックアップ確認
+  ./crsctl stop cluster -all
+  ./crsctl start crs -excl -nocrs
+  ./ocrconfig -restore /u01/app/12.1.0/grid/cdata/node-cluster/backup00.ocr    リストア
+  ./crsctl start cluster -all
+  ./cluvfy comp ocr -n all
+  
+Parallely I have checked with infrastructure team about this server. They identified some local script has hang.  Now I have started OHASD service in background and it's able to start the CRS.
+
+[root@rac1 ~]# nohup /etc/init.d/init.ohasd run &  
+================================================================================================================
+select * from v$logfile;
+select * from v$log;
+select group#, members, bytes/1024/1024 as MB from v$log;
+
+alter database add logfile thread 2 group 3 ('+DATA/oracle/redo17.log','+DATA/oracle/redo18.log') size 120M;
+alter database drop logfile group 6;
+ALTER DATABASE ADD LOGFILE MEMBER '+DATA/oracle/redo01.log' TO GROUP 1; 
+
+
+alter system switch logfile;
+alter system CHECKPOINT;
+
+
+SQL>  ALTER SYSTEM SET DB_RECOVERY_FILE_DEST_SIZE = 332859965440;
+SQL> show parameter recovery
+
+

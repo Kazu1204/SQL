@@ -1,0 +1,119 @@
+オブジェクト確認
+SQL> col OBJECT_NAME for a20
+SQL> col OBJECT_TYPE for a30
+SQL> select OBJECT_NAME,OBJECT_TYPE from user_objects
+SQL> where OBJECT_TYPE='TABLE';  
+
+     OBJECT_NAME          OBJECT_TYPE
+     -------------------- ------------------------------
+     CUSTOMERS            TABLE
+     LOGON                TABLE
+     PRODUCT_INFORMATION  TABLE
+     INVENTORIES          TABLE
+     ORDERS               TABLE
+     ORDER_ITEMS          TABLE
+     WAREHOUSES           TABLE
+     ORDERENTRY_METADATA  TABLE
+     PRODUCT_DESCRIPTIONS TABLE
+
+SQL> !vi spool.sql
+以下をSQLファイルに追記
+SQL> set termout off
+SQL> spool 11g_CUSTOMERS.log
+SQL> select * from CUSTOMERS order by CUSTOMER_ID;
+SQL> spool off
+SQL> @11g_CUSTOMERS
+
+$diff 11g_CUSTOMERS 12c_CUSTOMERS > diff_CUSTOMERS
+
+SQL> desc CUSTOMERS
+ 名前                                    NULL?    型
+ ----------------------------------------- -------- ----------------------------
+ CUSTOMER_ID                                        NUMBER(12)
+ CUST_FIRST_NAME                           NOT NULL VARCHAR2(30)
+ CUST_LAST_NAME                            NOT NULL VARCHAR2(30)
+ NLS_LANGUAGE                                       VARCHAR2(3)
+ NLS_TERRITORY                                      VARCHAR2(30)
+ CREDIT_LIMIT                                       NUMBER(9,2)
+ CUST_EMAIL                                         VARCHAR2(100)
+ ACCOUNT_MGR_ID                                     NUMBER(6)
+
+
+SQL> desc LOGON
+ 名前                                    NULL?    型
+ ----------------------------------------- -------- ----------------------------
+ CUSTOMER_ID                                        NUMBER
+ LOGON_DATE                                         DATE
+
+
+SQL> desc PRODUCT_INFORMATION
+ 名前                                    NULL?    型
+ ----------------------------------------- -------- ----------------------------
+ PRODUCT_ID                                NOT NULL NUMBER(6)
+ PRODUCT_NAME                                       VARCHAR2(50)
+ PRODUCT_DESCRIPTION                                VARCHAR2(2000)
+ CATEGORY_ID                                        NUMBER(4)
+ WEIGHT_CLASS                                       NUMBER(1)
+ WARRANTY_PERIOD                                    INTERVAL YEAR(2) TO MONTH
+ SUPPLIER_ID                                        NUMBER(6)
+ PRODUCT_STATUS                                     VARCHAR2(20)
+ LIST_PRICE                                         NUMBER(8,2)
+ MIN_PRICE                                          NUMBER(8,2)
+ CATALOG_URL                                        VARCHAR2(50)
+
+
+SQL> desc INVENTORIES
+ 名前                                    NULL?    型
+ ----------------------------------------- -------- ----------------------------
+ PRODUCT_ID                                         NUMBER(6)
+ WAREHOUSE_ID                              NOT NULL NUMBER(6)
+ QUANTITY_ON_HAND                          NOT NULL NUMBER(8)
+
+ 
+ SQL> desc ORDERS
+ 名前                                    NULL?    型
+ ----------------------------------------- -------- ----------------------------
+ ORDER_ID                                           NUMBER(12)
+ ORDER_DATE                                NOT NULL TIMESTAMP(6) WITH LOCAL TIME
+                                                     ZONE
+ ORDER_MODE                                         VARCHAR2(8)
+ CUSTOMER_ID                               NOT NULL NUMBER(12)
+ ORDER_STATUS                                       NUMBER(2)
+ ORDER_TOTAL                                        NUMBER(8,2)
+ SALES_REP_ID                                       NUMBER(6)
+ PROMOTION_ID                                       NUMBER(6)
+ WAREHOUSE_ID                                       NUMBER(6)
+
+
+SQL> desc ORDER_ITEMS
+ 名前                                    NULL?    型
+ ----------------------------------------- -------- ----------------------------
+ ORDER_ID                                           NUMBER(12)
+ LINE_ITEM_ID                              NOT NULL NUMBER(3)
+ PRODUCT_ID                                NOT NULL NUMBER(6)
+ UNIT_PRICE                                         NUMBER(8,2)
+ QUANTITY                                           NUMBER(8)
+
+
+SQL> desc WAREHOUSES
+ 名前                                    NULL?    型
+ ----------------------------------------- -------- ----------------------------
+ WAREHOUSE_ID                                       NUMBER(6)
+ WAREHOUSE_NAME                                     VARCHAR2(35)
+ LOCATION_ID                                        NUMBER(4)
+
+ 
+ SQL> desc ORDERENTRY_METADATA
+ 名前                                    NULL?    型
+ ----------------------------------------- -------- ----------------------------
+ METADATA_KEY                                       VARCHAR2(30)
+ METADATA_VALUE                                     VARCHAR2(30)
+
+
+SQL> desc PRODUCT_DESCRIPTIONS
+ 名前                                    NULL?    型
+ ----------------------------------------- -------- ----------------------------
+ PRODUCT_ID                                         NUMBER(6)
+ LANGUAGE_ID                                        VARCHAR2(3)
+ TRANSLATED_NAME                           NOT NULL NVARCHAR2(50)
+ TRANSLATED_DESCRIPTION                    NOT NULL NVARCHAR2(2000)
